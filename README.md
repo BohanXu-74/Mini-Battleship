@@ -1,271 +1,121 @@
-MINI-BATTLESHIP — STC15 Artillery Game
+# MINI BATTLESHIP
 
+So I wanted to make a tiny battleship style game on an STC15 microcontroller with one rotary encoder and a tiny OLED screen. The whole thing is written in C for SDCC and pretty much everything is done from scratch, including the OLED driver and the trig math. No floating point, no libraries, just lookup tables and suffering 💀
 
+The player controls a ship that moves horizontally while an enemy ship moves back and forth across the screen. You choose an angle with the rotary encoder, fire, and try to hit the enemy while both ships are moving. Every level the enemy gets faster so eventually it turns into complete chaos.
 
+## Hardware
 
+* STC15W204S microcontroller
+* 128x64 OLED display using I2C at address 0x3C
+* Rotary encoder with push button
+* Passive buzzer
+* Breadboard wiring
 
+## Pin Connections
 
+| Pin  | Function              |
+| ---- | --------------------- |
+| P3.0 | Rotary Encoder CLK    |
+| P3.1 | Rotary Encoder Button |
+| P3.2 | Rotary Encoder DT     |
+| P3.3 | Buzzer                |
+| P5.4 | OLED SDA              |
+| P5.5 | OLED SCL              |
 
+## Features
 
+* Enemy ship moves automatically and bounces at screen boundaries
+* Player ship speed can be changed from negative to positive values
+* Bullet trajectory uses integer trig lookup tables
+* Bullet inherits player ship velocity when fired
+* Hit detection system with increasing difficulty every level
+* Multiple menu screens controlled entirely with one rotary encoder
+* OLED driver written from scratch with software I2C bit banging
+* No floating point math used anywhere
 
+## Controls
 
-A tiny real-time artillery game written completely from scratch for the STC15W204S microcontroller.
-The game runs on a 128×64 I2C OLED display with a rotary encoder for input and a buzzer for sound.
+Short press from the main screen opens the aiming menu.
 
-Everything is hand-written:
+Turn the rotary encoder to select a firing angle from -90 to 90 degrees.
 
-OLED driver
-software I2C implementation
-font renderer
-physics
-menu system
-interrupt handlers
-integer-only trigonometry
+Press again to fire.
 
-No Arduino libraries, no floating point math, and no external graphics libraries are used.
+Long press opens the ship speed menu where movement speed can be changed from -10 to 10.
 
-Gameplay
+Really long press opens the orders menu with pause functionality.
 
-The player controls a moving ship and must destroy an enemy ship moving across the screen.
+Press on any result screen returns to the game.
 
-To hit the target:
+## Menu States
 
-choose a firing angle using the rotary encoder
-compensate for your ship’s movement
-predict enemy motion
-fire before the enemy changes direction
+| State | Screen               |
+| ----- | -------------------- |
+| 0     | Main game display    |
+| 1     | Aim selection        |
+| 2     | Ship speed selection |
+| 3     | Orders menu          |
+| 4     | Pause screen         |
+| 5     | Miss screen          |
+| 6     | Hit screen           |
+| 7     | Out of bounds screen |
 
-Each successful hit increases enemy speed, making later rounds harder.
+## How The Physics Works
 
-The projectile system includes:
+The projectile system uses a sine lookup table stored in flash memory instead of floating point math. Angles are converted using precomputed values from 0 to 90 degrees.
 
-horizontal velocity
-vertical velocity
-gravity
-inherited player ship momentum
+The bullet's horizontal movement is affected by:
 
-which creates real artillery-style ballistic gameplay despite running on an 8051-based MCU.
+* firing angle
+* bullet speed
+* player ship velocity at the moment of firing
 
-Hardware
-Component	Details
-Microcontroller	STC15W204S
-Display	128×64 OLED
-OLED Interface	Software I2C
-OLED Address	0x3C
-Input	Rotary encoder with push button
-Audio	Passive buzzer
-Compiler	SDCC
-Pinout
-Pin	Function
-P3.0	Rotary encoder CLK
-P3.1	Rotary encoder push button
-P3.2	Rotary encoder DT
-P3.3	Buzzer
-P5.4	OLED SDA
-P5.5	OLED SCL
-Features
-Real-time projectile physics
-Integer-only ballistic calculations
-Custom sine lookup table
-Gravity simulation
-Interrupt-driven movement
-Rotary encoder UI
-Multi-screen menu system
-Sound effects through buzzer
-Enemy AI with boundary bouncing
-Increasing difficulty progression
-Fully custom SSD1306 OLED driver
-Physics System
+That means firing while moving actually changes where the shot lands which makes the game feel way more interesting than just static artillery.
 
-The game uses integer-only motion calculations.
+## Interrupts
 
-Projectile motion is calculated using:
+Timer 0 interrupt updates:
 
-lookup-table sine values
-velocity integration
-fixed timestep updates
+* enemy movement
+* player movement
+* bullet position
 
-No floating point math is used anywhere in the project.
+External interrupt 4 handles rotary encoder input.
 
-Projectile motion includes gravity:
+Movement updates happen every 2 timer ticks using a divider counter.
 
-yBulletMov = yBulletMov - 4;
-xBulletPos = xBulletPos + xBulletMov;
-yBulletPos = yBulletPos + yBulletMov;
+## OLED Driver
 
-Shots also inherit player ship velocity:
+The OLED code was written completely from scratch using raw software I2C bit banging. No external display libraries are used. The font table is stored directly in flash memory using `__code`.
 
-xBulletMov = shipMovX + projectileVelocity;
+Honestly this part took way longer than the actual game because debugging tiny displays at like 1 AM is pain 😭
 
-which means firing while moving changes the projectile trajectory realistically.
+## Planned Features
 
-Trigonometry Implementation
+Things I still want to add:
 
-To avoid expensive floating point operations on the 8051 architecture, the game uses precomputed lookup tables stored in flash memory:
+* Actual wind mechanics
+* Configurable bullet speed
+* Better sound effects
+* Multiple enemy ships
+* Terrain or obstacles
+* Score system
 
-unsigned char __code sinD[91];
-unsigned char __code degrees[91];
-
-The lookup table stores scaled sine values from:
-
-0° to 90°
-
-Projectile vectors are generated entirely through integer math.
-
-Menu System
-
-The game uses a simple state-machine architecture.
-
-Menu ID	Screen
-0	Main gameplay
-1	Aim selection
-2	Ship speed selection
-3	Orders menu
-4	Pause screen
-5	Miss screen
-6	Hit screen
-7	Out-of-bounds screen
-Controls
-Action	Result
-Rotate encoder	Change values
-Short press	Open aiming menu
-Press in aim menu	Fire
-Long press	Ship speed menu
-Very long press	Pause/orders menu
-Press on result screen	Return to game
-Display Information
+## Build Info
 
-The main screen shows:
+Written in C for the SDCC compiler using:
 
-enemy position
-player position
-enemy speed
-player speed
-projectile coordinates
-wind value placeholder
+* `stc15.h`
+* `__interrupt`
+* `__code`
 
-Example:
+Target MCU:
 
-WIND: 0
-E: 10000  P: 0
-ES: 3     PS: 2
-BX: 1200  BY: 8400
-Interrupt Architecture
-Timer 0 Interrupt
-
-Handles:
+* STC15W204S
 
-enemy movement
-player movement
-projectile physics
-collision detection
-External Interrupt 4
+## Why I Made This
 
-Handles:
+I mostly made this because I thought it would be funny to build a full artillery game with one knob and a tiny OLED. Also I wanted to get better at embedded graphics and interrupts without relying on Arduino libraries for everything.
 
-rotary encoder input
-OLED Driver
-
-The SSD1306 OLED driver was written completely from scratch using bit-banged I2C.
-
-Implemented features include:
-
-command mode
-page addressing
-cursor positioning
-font rendering
-screen clearing
-ASCII text drawing
-
-No external display libraries are used.
-
-Repository Structure
-mini-battleship/
-├── src/
-│   ├── main.c
-│   ├── oled.c
-│   ├── oled.h
-│   └── fonts.h
-├── images/
-│   ├── game.jpg
-│   └── hardware.jpg
-├── schematic/
-│   └── wiring.png
-└── README.md
-Building
-
-Compile using SDCC:
-
-sdcc main.c
-
-Flash the generated binary to the STC15W204S using an STC programmer.
-
-Planned Features
-Real wind system
-Adjustable projectile power
-Improved sound effects
-Sprite graphics
-Better collision system
-Smarter enemy movement
-Optimized partial OLED redraws
-High score tracking
-Challenges and Lessons Learned
-Integer Physics on 8051 Hardware
-
-The STC15 is fast for an 8051 derivative, but floating point math is still expensive.
-The entire physics engine was therefore implemented using:
-
-integer math
-lookup tables
-fixed timestep updates
-
-This kept the game responsive while still allowing curved ballistic trajectories.
-
-OLED Rendering Performance
-
-Because the OLED uses software I2C, full-screen redraws are relatively expensive.
-Large screen updates can cause visible slowdown, especially during gameplay.
-
-Future versions will likely move to:
-
-partial redraws
-sprite-based rendering
-dirty-region updates
-Interrupt Timing
-
-Rotary encoder handling and projectile motion both rely on interrupts.
-Care had to be taken to avoid:
-
-missed encoder transitions
-unstable timing
-ISR slowdowns
-
-especially when using 16-bit arithmetic on an 8051 architecture.
-
-Tools Used
-Tool	Purpose
-SDCC	C compiler
-STC-ISP	Flashing utility
-SSD1306 OLED	Display
-Logic analyzer	Debugging encoder + I2C
-STC15W204S	Main MCU
-Future Direction
-
-This project started as an experiment in:
-
-low-level embedded graphics
-interrupt-driven game design
-integer-only physics
-
-and evolved into a complete miniature artillery game engine running on an 8051-class microcontroller.
-
-Future revisions may expand into:
-
-terrain deformation
-multiplayer over UART
-AI targeting
-larger map systems
-more advanced physics
-License
-
-MIT. See LICENSE for details.
+Turns out writing your own display driver and integer trig system on an 8051 style microcontroller is kinda cursed but also really fun.
