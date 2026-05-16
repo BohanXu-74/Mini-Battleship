@@ -1,8 +1,10 @@
 # MINI BATTLESHIP
 
-So I wanted to make a tiny battleship style game on an STC15 microcontroller with one rotary encoder and a tiny OLED screen. The whole thing is written in C for SDCC and pretty much everything is done from scratch, including the OLED driver and the trig math. No floating point, no libraries, just lookup tables and suffering 💀
+So I wanted to make a tiny battleship style game on an STC15 microcontroller with one rotary encoder and a tiny OLED screen. The whole thing is written in C for SDCC and pretty much everything is done from scratch, including the OLED driver and the trig math. No floating point, no libraries, just lookup tables and integer math.
 
-The player controls a ship that moves horizontally while an enemy ship moves back and forth across the screen. You choose an angle with the rotary encoder, fire, and try to hit the enemy while both ships are moving. Every level the enemy gets faster so eventually it turns into complete chaos.
+The player controls a moving ship and has to fire at an enemy ship moving across the screen. Turning the rotary encoder changes the firing angle, pressing changes ship speed, and long pressing opens the menu system. Wind also affects the projectile, so shots do not always land where you expect.
+
+Every time you hit the enemy, it gets faster, so after a few rounds the timing gets kinda difficult.
 
 ## Hardware
 
@@ -27,26 +29,21 @@ The player controls a ship that moves horizontally while an enemy ship moves bac
 
 * Enemy ship moves automatically and bounces at screen boundaries
 * Player ship speed can be changed from negative to positive values
+* Wind affects bullet trajectory
 * Bullet trajectory uses integer trig lookup tables
 * Bullet inherits player ship velocity when fired
 * Hit detection system with increasing difficulty every level
-* Multiple menu screens controlled entirely with one rotary encoder
-* OLED driver written from scratch with software I2C bit banging
+* Multiple menu screens controlled with one rotary encoder
+* OLED driver written completely from scratch
 * No floating point math used anywhere
 
 ## Controls
 
-Short press from the main screen opens the aiming menu.
+Turning the rotary encoder changes the firing angle from -90 to 90 degrees.
 
-Turn the rotary encoder to select a firing angle from -90 to 90 degrees.
+Pressing the encoder changes ship speed.
 
-Press again to fire.
-
-Long press opens the ship speed menu where movement speed can be changed from -10 to 10.
-
-Really long press opens the orders menu with pause functionality.
-
-Press on any result screen returns to the game.
+Long pressing opens the orders menu with pause functionality.
 
 ## Menu States
 
@@ -70,8 +67,9 @@ The bullet's horizontal movement is affected by:
 * firing angle
 * bullet speed
 * player ship velocity at the moment of firing
+* wind
 
-That means firing while moving actually changes where the shot lands which makes the game feel way more interesting than just static artillery.
+That means firing while moving changes where the shot lands instead of always shooting the same distance.
 
 ## Interrupts
 
@@ -87,28 +85,29 @@ Movement updates happen every 2 timer ticks using a divider counter.
 
 ## OLED Driver
 
-The OLED code was written completely from scratch using raw software I2C bit banging. No external display libraries are used. The font table is stored directly in flash memory using `__code`.
+The OLED code was written completely from scratch using raw software I2C bit banging. No external display libraries are used. The font table is stored directly in flash memory.
 
-Honestly this part took way longer than the actual game because debugging tiny displays at like 1 AM is pain 😭
+## Repository Layout
 
-## Planned Features
+```text
+Mini-Battleship/
+├── src/
+│   ├── main.c
+│   └── main.ihx
+├── LICENSE
+└── README.md
+```
 
-Things I still want to add:
+## Things I Want To Add
 
-* Actual wind mechanics
-* Configurable bullet speed
+* A 3D printed case
 * Better sound effects
-* Multiple enemy ships
-* Terrain or obstacles
-* Score system
+* Smarter enemy movement
+* Better score system
 
 ## Build Info
 
-Written in C for the SDCC compiler using:
-
-* `stc15.h`
-* `__interrupt`
-* `__code`
+Written in C for the SDCC compiler.
 
 Target MCU:
 
@@ -116,6 +115,6 @@ Target MCU:
 
 ## Why I Made This
 
-I mostly made this because I thought it would be funny to build a full artillery game with one knob and a tiny OLED. Also I wanted to get better at embedded graphics and interrupts without relying on Arduino libraries for everything.
+I mostly made this because I thought it would be fun to build a full artillery game with one knob and a tiny OLED. I also wanted to get better at embedded systems, interrupts, and writing drivers without relying on Arduino libraries for everything.
 
-Turns out writing your own display driver and integer trig system on an 8051 style microcontroller is kinda cursed but also really fun.
+It ended up teaching me a lot about timers, lookup tables, and handling multiple game systems on a tiny microcontroller.
